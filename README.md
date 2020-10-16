@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # CEDA Intake catalogues
 
 
@@ -30,7 +29,6 @@ This package was created with `Cookiecutter` and the `audreyr/cookiecutter-pypac
 
  * Cookiecutter: https://github.com/audreyr/cookiecutter
  * cookiecutter-pypackage: https://github.com/audreyr/cookiecutter-pypackage
-=======
+
 # ceda-intake
 Generate posix and S3 intake catalogs
->>>>>>> 2c98566690147b3a25489c9ad106d3dc94bcb9e6
