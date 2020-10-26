@@ -29,7 +29,7 @@ def write_filelists_by_mip(odir, dset_ids):
     mipfilelists_dir = Path(odir)
     # Clears all records at the start of each run is this what we want?
     if mipfilelists_dir.exists():
-        loggig.info(f'REMOVING TREE {mipfilelists_dir}')
+        logging.info(f'REMOVING TREE {mipfilelists_dir}')
         shutil.rmtree(mipfilelists_dir)
     mipfilelists_dir.mkdir()
 

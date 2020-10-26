@@ -32,7 +32,7 @@ def main():
     #
     # print("Replace this message by putting your code into "
     #       "ceda_intake.cli.main")
-    cedaintake.cedaintake_main(args.dataset_ids, args.outputfile, args.catalog_type, args.project)
+    cedaintake.cedaintake_main(args.dataset_ids, args.output_file, args.catalog_type, args.project)
     return 0
 
 
