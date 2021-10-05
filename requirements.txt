@@ -1,0 +1,5 @@
+intake
+intake-esm
+xarray
+pandas
+fsspec
