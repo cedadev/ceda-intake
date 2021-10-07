@@ -3,3 +3,4 @@ intake-esm
 xarray
 pandas
 fsspec
+psycopg2>=2.8.0

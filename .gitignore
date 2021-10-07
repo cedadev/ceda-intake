@@ -140,3 +140,4 @@ mc
 data
 mprofile*.dat
 log
+.postgres_credentials
