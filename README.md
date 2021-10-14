@@ -1,6 +1,39 @@
 # CEDA Intake catalogues
 
 
+
+Example intake catalog:
+
+```
+ds_id,path,size,mip_era,activity_id,institution_id,source_id,experiment_id,member_id,table_id,variable_id,grid_label,version,start_time,end_time,bbox,level
+c3s-cmip6.ScenarioMIP.CAS.FGOALS-g3.ssp119.r1i1p1f1.day.sfcWind.gn.v20191202,ScenarioMIP/CAS/FGOALS-g3/ssp119/r1i1p1f1/day/sfcWind/gn/v20191202/sfcWind_day_FGOALS-g3_ssp119_r1i1p1f1_gn_20860101-20861231.nc,21053432,c3s-cmip6,ScenarioMIP,CAS,FGOALS-g3,ssp119,r1i1p1f1,day,sfcWind,gn,v20191202,2086-01-01T12:00:00,2086-12-31T12:00:00,"0.00, -90.00, 358.00, 90.00",10.00
+c3s-cmip6.ScenarioMIP.EC-Earth-Consortium.EC-Earth3-Veg-LR.ssp585.r1i1p1f1.SImon.sithick.gn.v20201201,ScenarioMIP/EC-Earth-Consortium/EC-Earth3-Veg-LR/ssp585/r1i1p1f1/SImon/sithick/gn/v20201201/sithick_SImon_EC-Earth3-Veg-LR_ssp585_r1i1p1f1_gn_209101-209112.nc,1691093,c3s-cmip6,ScenarioMIP,EC-Earth-Consortium,EC-Earth3-Veg-LR,ssp585,r1i1p1f1,SImon,sithick,gn,v20201201,2091-01-16T12:00:00,2091-12-16T12:00:00,"0.05, -78.58, 359.99, 89.74",
+```
+
+Keys:
+```
+- ds_id:  c3s-cmip6.ScenarioMIP.CAS.FGOALS-g3.ssp119.r1i1p1f1.day.sfcWind.gn.v20191202
+- path:   ScenarioMIP/CAS/FGOALS-g3/ssp119/r1i1p1f1/day/sfcWind/gn/v20191202/sfcWind_day_FGOALS-g3_ssp119_r1i1p1f1_gn_20860101-20861231.nc
+- size:   21053432
+- mip_era:   c3s-cmip6
+- activity_id:   ScenarioMIP
+- institution_id:   CAS
+- source_id:   FGOALS-g3
+- experiment_id:   ssp119
+- member_id:   r1i1p1f1
+- table_id:   day
+- variable_id:   sfcWind
+- grid_label:   gn
+- version:   v20191202
+- start_time:   2086-01-01T12:00:00
+- end_time:   2086-12-31T12:00:00
+- bbox:   0.00, -90.00, 358.00, 90.00
+- level:   10.00
+```
+
+
+
+
 [![Pypi](https://img.shields.io/pypi/v/ceda_intake.svg)](https://pypi.python.org/pypi/ceda_intake)
 
 [![Travis](https://img.shields.io/travis/cedadev/ceda_intake.svg)](https://travis-ci.org/cedadev/ceda_intake)

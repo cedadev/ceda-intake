@@ -1,108 +1,176 @@
-# -*- coding: utf-8 -*-
-import pandas as pd
-import dask.dataframe as dd
-from intake.source.utils import reverse_format
+#!/usr/bin/env python
+
+"""
+Example use:
+
+ script.py cmip6
+
+Example intake:
+
+$ cat ~/.intake/cache/4967e926fe3363d9d027fcb7ac4d20bf/raw.githubusercontent.com/cp4cds/c3s_34g_manifests/master/intake/catalogs/c3s-cmip6/r3/c3s-cmip6_v20210625.csv.gz | gunzip | head -30
+
+ds_id,path,size,mip_era,activity_id,institution_id,source_id,experiment_id,member_id,table_id,variable_id,grid_label,version,start_time,end_time,bbox,level
+
+c3s-cmip6.ScenarioMIP.CAS.FGOALS-g3.ssp119.r1i1p1f1.day.sfcWind.gn.v20191202,ScenarioMIP/CAS/FGOALS-g3/ssp119/r1i1p1f1/day/sfcWind/gn/v20191202/sfcWind_day_FGOALS-g3_ssp119_r1i1p1f1_gn_20860101-20861231.nc,21053432,c3s-cmip6,ScenarioMIP,CAS,FGOALS-g3,ssp119,r1i1p1f1,day,sfcWind,gn,v20191202,2086-01-01T12:00:00,2086-12-31T12:00:00,"0.00, -90.00, 358.00, 90.00",10.00
+
+c3s-cmip6.ScenarioMIP.EC-Earth-Consortium.EC-Earth3-Veg-LR.ssp585.r1i1p1f1.SImon.sithick.gn.v20201201,ScenarioMIP/EC-Earth-Consortium/EC-Earth3-Veg-LR/ssp585/r1i1p1f1/SImon/sithick/gn/v20201201/sithick_SImon_EC-Earth3-Veg-LR_ssp585_r1i1p1f1_gn_209101-209112.nc,1691093,c3s-cmip6,ScenarioMIP,EC-Earth-Consortium,EC-Earth3-Veg-LR,ssp585,r1i1p1f1,SImon,sithick,gn,v20201201,2091-01-16T12:00:00,2091-12-16T12:00:00,"0.05, -78.58, 359.99, 89.74",
+
+c3s-cmip6.CMIP.EC-Earth-Consortium.EC-Earth3-Veg-LR.historical.r1i1p1f1.day.huss.gr.v20200217,CMIP/EC-Earth-Consortium/EC-Earth3-Veg-LR/historical/r1i1p1f1/day/huss/gr/v20200217/huss_day_EC-Earth3-Veg-LR_historical_r1i1p1f1_gr_18550101-18551231.nc,65838336,c3s-cmip6,CMIP,EC-Earth-Consortium,EC-Earth3-Veg-LR,historical,r1i1p1f1,day,huss,gr,v20200217,1855-01-01T12:00:00,1855-12-31T12:00:00,"0.00, -89.14, 358.88, 89.14",2.00
+
+ds_id, location, ...facets..., start_time, end_time 
+
+"""
+
+
+import subprocess as sp
 import os
-import re
-import glob
-import subprocess
-from pathlib import Path
-import shutil
-import numpy as np
+import sys
+import shlex
+import json
+import requests
+import pandas as pd
+
+from ceda_intake.catalog_maker import CatalogMaker
 
 
-"""Main module."""
-
-__author__ = """Ruth Petrie"""
-__contact__ = "ruth.petrie@stfc.ac.uk"
-__copyright__ = "Copyright 2018 United Kingdom Research and Innovation"
-__license__ = "BSD - see LICENSE file in top-level package directory"
-
-def write_filelists_by_mip(odir, dset_ids):
-    """
-    Generate a list of all CMIP6 files write output in odir which creates a file for each MIP
-    all files in that mip are added.
-    :param odir: mipdir to hold lists of all the files
-    :return: No return....
-    """
-
-    mipfilelists_dir = Path(odir)
-    # Clears all records at the start of each run is this what we want?
-    if mipfilelists_dir.exists():
-        logging.info(f'REMOVING TREE {mipfilelists_dir}')
-        shutil.rmtree(mipfilelists_dir)
-    mipfilelists_dir.mkdir()
-
-    for ds in dset_ids:
-        mip = ds.split('.')[1]
-        ds_datadir = Path(BASE_DATADIR, ds.replace('.', '/'))
-
-        with open(f'{mipfilelists_dir}/{mip}.txt', 'a+') as f:
-            filepaths = glob.glob(f'{ds_datadir}/*.nc')
-            f.write('\n'.join(filepaths) + '\n')
+config = {
+    "cmip6": {
+        "base_dir": "/badc/cmip6/data/CMIP6",
+        "facets": "mip_era activity_id institution_id source_id experiment_id member_id table_id variable_id grid_label version".split(),
+        "scan_depth": 5,
+        "mappings": {"variable": "variable_id", "project": "mip_era"}
+    },
+    "cmip5": {
+        "base_dir": "/badc/cmip5/data/cmip5",
+        "facets": "activity product institute model experiment frequency realm mip_table ensemble_member version variable".split(),
+        "scan_depth": 5, 
+        "mappings": {"project": "activity"}
+    },
+    "cordex": {
+        "base_dir": "/badc/cordex/data/cordex",
+        "facets": "project product domain institute driving_model experiment ensemble rcm_name rcm_version time_frequency variable".split(),
+        "scan_depth": 5,
+        "mappings": {"project": "project"}
+    }
+}
 
 
-def get_attrs(filepath):
-
-    activity_id, institution_id, source_id, experiment_id, member_id, table_id, variable_id, grid_label, version = filepath.split('/')[5:-1]
-    #TODO: Update this to a lookup not a copy of table_id
-    frequency = table_id
-    time_range = filepath.split('/')[-1].strip('.nc').split('_')[-1]
-    keys = ['variable_id', 'table_id', 'source_id', 'experiment_id', 'member_id', 'grid_label', 'time_range', 'frequency', 'activity_id', 'institution_id', 'version', 'path']
-    values = [variable_id, table_id, source_id, experiment_id, member_id, grid_label, time_range, frequency, activity_id, institution_id, version, filepath]
-    fileparts = dict([(k, v) for k, v in zip(keys, values)])
-
-    return fileparts
+def _get_log_file(project):
+    return f"{project}.log"
 
 
-def read_file(filename):
-
-    with open(filename) as r:
-        listitems = [line.strip() for line in r]
-    return listitems
+def log_err(msg, project):
+    with open(_get_log_file(project), "a") as w:
+        w.write(msg + "\n")
 
 
-def create_dataframe():
-
-    df = dd.read_csv(f"{FILE_LIST_BY_MIP_DIR}/*.txt", header=None).compute()
-    df.columns = ["path"]
-    logging.debug(f'READ CSV: dataframe length {len(df)}')
-    logging.debug(f'READ CSV: df.head()')
-
-    filelist = df.path.tolist()
-    # filelist = list(filter(_filter_func, files))
-    logging.debug(f'GEN FILELIST: Length filelist {len(filelist)}')
-
-    entries = list(map(get_attrs, filelist))
-    logging.debug(f'GET ENTRIES: Entries: {entries[0]}')
-    logging.debug(f'GET ENTRIES:Length entries: {len(entries)}')
-    df = pd.DataFrame(entries)
-    logging.debug(f'DF FROM ENTRIES: {df.head()}')
-
-    df["dcpp_init_year"] = df.member_id.map(lambda x: float(x.split("-")[0][1:] if x.startswith("s") else np.nan))
-    df["member_id"] = df["member_id"].map(lambda x: x.split("-")[-1] if x.startswith("s") else x)
-    logging.debug(f'FIX DCPP INIT: {df.head()}')
-
-    columns = ["activity_id", "institution_id", "source_id", "experiment_id", "member_id", "table_id", "variable_id",
-               "grid_label", "dcpp_init_year", "version", "time_range", "path"]
-    df = df[columns]
-    df = df.sort_values(columns, ascending=True).reset_index(drop=True)
-    logging.debug(f'SORTING: {df.head()}')
-
-    return df
+def reset(project):
+    log_file = _get_log_file(project)
+    if os.path.isfile(log_file):
+        os.remove(log_file)
 
 
-def cedaintake_main(datasets_file, ofile, catalog_type, project):
+def lookup_latest(dr):
+    if not dr or not dr.endswith("latest"):
+        return None
 
-    dataset_ids = read_file(datasets_file)
+    try:
+        dr = os.path.join(os.path.dirname(dr), os.readlink(dr)) 
+        return dr
+    except:
+        return None
 
-    # Write all files present to mip (activity) level files
-    write_filelists_by_mip(FILE_LIST_BY_MIP_DIR, dataset_ids)
 
-    # Generate a dataframe
-    df = create_dataframe()
+def get_version_dirs(rip_dir, project):
+    query = {"query": { "bool": { "must": [ { "match_phrase_prefix": 
+                 { "path": rip_dir } }, 
+                 { "term": { "dir": { "value": "latest" } } } ] } } }
+    url = "https://elasticsearch.ceda.ac.uk/ceda-dirs/_search?size=10000"
+    headers = {'Content-Type': 'application/json'}
 
-    # df.to_csv(CSVFILE, compression="gzip", index=False)
-    df.to_csv(ofile, index=False)
-    logging.info(f'Writen file to {ofile} \n length: {len(df)}')
+    try:
+        records = []
+        resp = requests.post(url, data=json.dumps(query), headers=headers)
+    except:
+        log_err(f"Cannot process rip_dir: {rip_dir}", project)
+        return []
 
+    for rec in resp.json()["hits"]["hits"]:
+        err_msg = f"Suspect elasticsearch record: {rec}"
+
+        try:
+            if not rec.get("_source", {}).get("archive_path"):
+                dr = lookup_latest(rec.get("path"))
+            else:
+                dr = rec["_source"]["archive_path"]
+
+            if dr:
+                records.append(dr)
+            else:
+                log_err(err_msg, project)
+        except:
+            log_err(err_msg, project)
+
+            
+    return records 
+
+
+def write_intake_catalog(version_dirs_file, project):
+#    ds_id, location, ...facets..., start_time, end_time
+    facets = config[project]["facets"]
+    base_dir = config[project]["base_dir"]
+    records = sorted(open(version_dirs_file).read().strip().split())
+    catalog_maker = CatalogMaker(project, facets, records, base_dir, "posix", "nc")
+    catalog_maker.create()
+
+
+def intake_maker(project, remake=False):
+    conf = config[project]
+    reset(project)
+
+    rip_file = f"{project}_rip_dirs.txt"
+    version_dirs_file = f"{project}_version_dirs.txt"
+    intake_file = f"{project}_intake.csv.gz"
+
+    depth = conf["scan_depth"]
+
+    if not remake and os.path.isfile(rip_file):
+        print(f"[WARN] Already found: {rip_file}")
+
+    else:
+        fout = open(rip_file, "w")
+        cmd = f"find -L {conf['base_dir']} -maxdepth {depth} -mindepth {depth} -type d -name 'r*'"
+        print(f"[INFO] Running: {cmd}")
+        sp.call(shlex.split(cmd), stdout=fout)
+        fout.close()
+        print(f"[INFO] Wrote: {rip_file}")
+
+    if not remake and os.path.isfile(version_dirs_file):
+        print(f"[WARN] Already found: {version_dirs_file}")
+
+    else:
+        print(f"[INFO] Looping through each ripf directory to get listings...")
+        rip_dirs = open(rip_file).read().strip().split()
+
+        with open(version_dirs_file, "w") as version_writer:
+
+            for rip_dir in rip_dirs:
+                version_dirs = get_version_dirs(rip_dir, project=project)
+                print(f"[INFO] Count for {rip_dir}: {len(version_dirs)}")
+                version_writer.write("\n".join(version_dirs) + "\n")
+
+        print(f"[INFO] Wrote: {version_dirs_file}")
+
+    if not remake and os.path.isfile(intake_file):
+        print(f"[WARN] Already found: {intake_file}")
+
+    else:
+        print(f"[INFO] Writing intake file: {intake_file}")
+        write_intake_catalog(version_dirs_file, project)
+
+    print(f"[INFO] All done!")
+
+
+if __name__ == "__main__":
+
+    intake_maker(sys.argv[1])
