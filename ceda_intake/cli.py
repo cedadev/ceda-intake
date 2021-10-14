@@ -9,7 +9,7 @@ __license__ = "BSD - see LICENSE file in top-level package directory"
 
 import sys
 import argparse
-from ceda_intake.ceda_intake import intake_maker
+from ceda_intake.ceda_intake import make_intake_catalog
 
 
 def main():
@@ -25,7 +25,7 @@ def main():
     if os.path.exists(args.output_file):
         os.remove(args.output_file)
 
-    ceda_intake.main(args.project)
+    make_intake_catalog(args.project)
     return 0
 
 

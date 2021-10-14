@@ -124,7 +124,7 @@ def write_intake_catalog(version_dirs_file, project):
     catalog_maker.create()
 
 
-def intake_maker(project, remake=False):
+def make_intake_catalog(project, remake=False):
     conf = config[project]
     reset(project)
 
@@ -173,4 +173,4 @@ def intake_maker(project, remake=False):
 
 if __name__ == "__main__":
 
-    intake_maker(sys.argv[1])
+    make_intake_catalog(sys.argv[1])
