@@ -3,18 +3,14 @@
 """
 Example use:
 
- script.py cmip6
+ scprimaryt.py cmip6
 
 Example intake:
 
 $ cat ~/.intake/cache/4967e926fe3363d9d027fcb7ac4d20bf/raw.githubusercontent.com/cp4cds/c3s_34g_manifests/master/intake/catalogs/c3s-cmip6/r3/c3s-cmip6_v20210625.csv.gz | gunzip | head -30
 
 ds_id,path,size,mip_era,activity_id,institution_id,source_id,experiment_id,member_id,table_id,variable_id,grid_label,version,start_time,end_time,bbox,level
-
-c3s-cmip6.ScenarioMIP.CAS.FGOALS-g3.ssp119.r1i1p1f1.day.sfcWind.gn.v20191202,ScenarioMIP/CAS/FGOALS-g3/ssp119/r1i1p1f1/day/sfcWind/gn/v20191202/sfcWind_day_FGOALS-g3_ssp119_r1i1p1f1_gn_20860101-20861231.nc,21053432,c3s-cmip6,ScenarioMIP,CAS,FGOALS-g3,ssp119,r1i1p1f1,day,sfcWind,gn,v20191202,2086-01-01T12:00:00,2086-12-31T12:00:00,"0.00, -90.00, 358.00, 90.00",10.00
-
 c3s-cmip6.ScenarioMIP.EC-Earth-Consortium.EC-Earth3-Veg-LR.ssp585.r1i1p1f1.SImon.sithick.gn.v20201201,ScenarioMIP/EC-Earth-Consortium/EC-Earth3-Veg-LR/ssp585/r1i1p1f1/SImon/sithick/gn/v20201201/sithick_SImon_EC-Earth3-Veg-LR_ssp585_r1i1p1f1_gn_209101-209112.nc,1691093,c3s-cmip6,ScenarioMIP,EC-Earth-Consortium,EC-Earth3-Veg-LR,ssp585,r1i1p1f1,SImon,sithick,gn,v20201201,2091-01-16T12:00:00,2091-12-16T12:00:00,"0.05, -78.58, 359.99, 89.74",
-
 c3s-cmip6.CMIP.EC-Earth-Consortium.EC-Earth3-Veg-LR.historical.r1i1p1f1.day.huss.gr.v20200217,CMIP/EC-Earth-Consortium/EC-Earth3-Veg-LR/historical/r1i1p1f1/day/huss/gr/v20200217/huss_day_EC-Earth3-Veg-LR_historical_r1i1p1f1_gr_18550101-18551231.nc,65838336,c3s-cmip6,CMIP,EC-Earth-Consortium,EC-Earth3-Veg-LR,historical,r1i1p1f1,day,huss,gr,v20200217,1855-01-01T12:00:00,1855-12-31T12:00:00,"0.00, -89.14, 358.88, 89.14",2.00
 
 ds_id, location, ...facets..., start_time, end_time 
@@ -32,30 +28,8 @@ import requests
 import pandas as pd
 
 from ceda_intake.catalog_maker import CatalogMaker
+from ceda_intake.config import config
 
-
-config = {
-    "cmip6": {
-        "base_dir": "/badc/cmip6/data/CMIP6",
-        "facets": "mip_era activity_id institution_id source_id experiment_id member_id table_id variable_id grid_label version".split(),
-        "scan_depth": 5,
-        "mappings": {"variable": "variable_id", "project": "mip_era"}
-    },
-    "cmip5": {
-        "base_dir": "/badc/cmip5/data/cmip5",
-        "facets": "activity product institute model experiment frequency realm mip_table ensemble_member version variable".split(),
-        "scan_depth": 5, 
-        "mappings": {"project": "activity"},
-        "deeper_scan": 1,
-        "exclude": ("derived", "retracted")
-    },
-    "cordex": {
-        "base_dir": "/badc/cordex/data/cordex",
-        "facets": "project product domain institute driving_model experiment ensemble rcm_name rcm_version time_frequency variable".split(),
-        "scan_depth": 5,
-        "mappings": {"project": "project"}
-    }
-}
 
 
 def _get_log_file(project):
@@ -72,6 +46,10 @@ def reset(project):
     if os.path.isfile(log_file):
         os.remove(log_file)
 
+    cat_dir = f"catalogs/{project}"
+    if not os.path.isdir(cat_dir):
+        os.makedirs(cat_dir)
+
 
 def lookup_latest(dr):
     if not dr or not dr.endswith("latest"):
@@ -84,13 +62,20 @@ def lookup_latest(dr):
         return None
 
 
-def get_dataset_dirs(rip_dir, project):
+def rename(dr, project):
+    for rename_key, rename_value in config[project].get("renamers", {}).items():
+        dr = dr.replace(rename_key, rename_value)
+
+    return dr
+
+
+def get_dataset_dirs(primary_dir, project):
     """
     This uses "latest" directories to find the directories.
     In the case of CMIP5, extra post-processing will be required.
     """
     query = {"query": { "bool": { "must": [ { "match_phrase_prefix": 
-                 { "path": rip_dir } }, 
+                 { "path": primary_dir } }, 
                  { "term": { "dir": { "value": "latest" } } } ] } } }
     url = "https://elasticsearch.ceda.ac.uk/ceda-dirs/_search?size=10000"
     headers = {'Content-Type': 'application/json'}
@@ -99,7 +84,7 @@ def get_dataset_dirs(rip_dir, project):
         records = []
         resp = requests.post(url, data=json.dumps(query), headers=headers)
     except:
-        log_err(f"Cannot process rip_dir: {rip_dir}", project)
+        log_err(f"Cannot process primary_dir: {primary_dir}", project)
         return []
 
     for rec in resp.json()["hits"]["hits"]:
@@ -112,6 +97,7 @@ def get_dataset_dirs(rip_dir, project):
                 dr = rec["_source"]["archive_path"]
 
             if dr:
+                dr = rename(dr, project)
                 records.append(dr)
             else:
                 log_err(err_msg, project)
@@ -139,26 +125,7 @@ def scan_deeper(dataset_dirs, scan_level=0):
     return dirs
 
 
-
-def test_scan_deeper():
-    d1 = "/badc/cmip5/data/cmip5/output1/BCC/bcc-csm1-1/decadal1991/mon/land/Lmon/r3i1p1/v20121026"
-    v1 = "evspsblsoi  evspsblveg  lai  mrfso  mrlsl  mrro  mrros  mrso  mrsos  prveg  tran  tsl".split() 
-    r1 = scan_deeper([d1], 1)
-    assert sorted(r1) == sorted([f"{d1}/{v}" for v in v1])
-
-    assert scan_deeper([d1], 0) == [d1]
-
-    # Do a 2-level scan
-    d2 = "/badc/cmip5/data/cmip5/output1/BCC/bcc-csm1-1/decadal1991/mon/land/Lmon/r3i1p1"
-    r2 = scan_deeper([d2], 2)
-    assert r2[0] == "/badc/cmip5/data/cmip5/output1/BCC/bcc-csm1-1/decadal1991/mon/land/Lmon/r3i1p1/files/evspsblsoi_20121026"
-    assert r2[-1] == "/badc/cmip5/data/cmip5/output1/BCC/bcc-csm1-1/decadal1991/mon/land/Lmon/r3i1p1/v20121026/tsl"
-    assert len(r2) == 36
-    print("ALL TESTS PASSED")
-
-
 def write_intake_catalog(datasets_file, project):
-#    ds_id, location, ...facets..., start_time, end_time
     facets = config[project]["facets"]
     base_dir = config[project]["base_dir"]
     records = sorted(open(datasets_file).read().strip().split())
@@ -166,47 +133,47 @@ def write_intake_catalog(datasets_file, project):
     catalog_maker.create()
 
 
-def make_intake_catalog(project, remake=False):
+def make_intake_catalog(project, remake=True):
     conf = config[project]
+
     reset(project)
 
-    rip_file = f"{project}_rip_dirs.txt"
-    datasets_file = f"{project}_dataset_dirs.txt"
-    intake_file = f"{project}_intake.csv.gz"
+    primary_dirs_file = f"catalogs/{project}/{project}_primary_dirs.txt"
+    datasets_file = f"catalogs/{project}/{project}_dataset_dirs.txt"
 
     depth = conf["scan_depth"]
 
-    if not remake and os.path.isfile(rip_file):
-        print(f"[WARN] Already found: {rip_file}")
+    if not remake and os.path.isfile(primary_dirs_file):
+        print(f"[WARN] Already found: {primary_dirs_file}")
 
     else:
-        fout = open(rip_file, "w")
+        fout = open(primary_dirs_file, "w")
         cmd = f"find -L {conf['base_dir']} -maxdepth {depth} -mindepth {depth} -type d -name '[a-zA-Z0-9]*'"
         print(f"[INFO] Running: {cmd}")
         sp.call(shlex.split(cmd), stdout=fout)
         fout.close()
-        print(f"[INFO] Wrote: {rip_file}")
+        print(f"[INFO] Wrote: {primary_dirs_file}")
 
     if not remake and os.path.isfile(datasets_file):
         print(f"[WARN] Already found: {datasets_file}")
 
     else:
-        print(f"[INFO] Looping through each ripf directory to get listings...")
-        rip_dirs = open(rip_file).read().strip().split()
+        print(f"[INFO] Looping through each primary directory to get listings...")
+        primary_dirs = open(primary_dirs_file).read().strip().split()
 
         with open(datasets_file, "w") as dataset_writer:
 
-            for rip_dir in rip_dirs:
-                if [exclude for exclude in conf.get("exclude", []) if exclude in rip_dir]:
-                    print(f"[WARN] Ignoring excluded path: {rip_dir}")
+            for primary_dir in primary_dirs:
+                if [exclude for exclude in conf.get("exclude", []) if exclude in primary_dir]:
+                    print(f"[WARN] Ignoring excluded path: {primary_dir}")
                     continue
 
-                dataset_dirs = get_dataset_dirs(rip_dir, project=project)
+                dataset_dirs = get_dataset_dirs(primary_dir, project=project)
 
                 if len(dataset_dirs) == 0:
-                    log_err(f"./add_latest_links.sh {rip_dir}", project)
+                    log_err(f"./add_latest_links.sh {primary_dir}", project)
 
-                print(f"[INFO] Count for {rip_dir}: {len(dataset_dirs)}")
+                print(f"[INFO] Count for {primary_dir}: {len(dataset_dirs)}")
 
                 dataset_dirs = scan_deeper(dataset_dirs, conf.get("deeper_scan", 0))
                 #if dataset_dirs: print(dataset_dirs)
@@ -214,16 +181,8 @@ def make_intake_catalog(project, remake=False):
 
         print(f"[INFO] Wrote: {datasets_file}")
 
-    if not remake and os.path.isfile(intake_file):
-        print(f"[WARN] Already found: {intake_file}")
-
-    else:
-        print(f"[INFO] Writing intake file: {intake_file}")
-        write_intake_catalog(datasets_file, project)
+    print(f"[INFO] Writing intake file...")
+    write_intake_catalog(datasets_file, project)
 
     print(f"[INFO] All done!")
 
-
-if __name__ == "__main__":
-
-    make_intake_catalog(sys.argv[1])

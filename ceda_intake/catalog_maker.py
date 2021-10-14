@@ -7,7 +7,7 @@ import pandas as pd
 
 
 
-json_template = "intake_template.json.tmpl"
+json_template = os.path.join(os.path.dirname(os.path.abspath(__file__)), "etc/intake_template.json.tmpl")
 
 
 def timer(f):
@@ -37,9 +37,9 @@ class CatalogMaker:
         self._description = f"CEDA intake-esm catalog for POSIX NetCDF files: {project}"
         self._cat_id = f"ceda-intake-{project}-{fs_type}-{fmt}"
 
-        self._output_json = f"{self._cat_id}.json"
-        self._output_csv = f"{self._cat_id}.csv.gz"
-        self._catalog_url = f"https://raw.githubusercontent.com/cedadev/ceda-intake/main/catalogs/{self._output_csv}"
+        self._output_json = f"catalogs/{project}/{self._cat_id}.json"
+        self._output_csv = f"catalogs/{project}/{self._cat_id}.csv.gz"
+        self._catalog_url = f"https://raw.githubusercontent.com/cedadev/ceda-intake/main/{self._output_csv}"
         
     def create(self):
         self._create_json()
@@ -86,7 +86,13 @@ class CatalogMaker:
             facet_values = dataset_id.split(".")
             start, end = self._get_temporal_range(dr)
             location = dr + "/*.nc"
-            rows.append([dataset_id, location, self._project] + facet_values + [start, end])
+            items = [dataset_id, location, self._project] + facet_values + [start, end]
+
+            if len(items) != 16:
+                print(len(items), items)
+                import pdb; pdb.set_trace()
+
+            rows.append(items)
 
         return pd.DataFrame(rows, columns=headers)
 

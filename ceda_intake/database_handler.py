@@ -238,12 +238,13 @@ class DBHandler:
 
 
     def batch_insert(self, records):
-        "Batch insert records."
+        """Batch insert records.
 
 >>> execute_values(cur,
 ... "INSERT INTO test (id, v1, v2) VALUES %s",
 ... [(1, 2, 3), (4, 5, 6), (7, 8, 9)])
-
+        """
+        raise NotImplementedError
 
 
     def insert_success(self, identifier):

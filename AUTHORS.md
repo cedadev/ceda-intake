@@ -2,7 +2,7 @@
 
 ## Development Lead
 
-* Ruth Petrie <ruth.petrie@stfc.ac.uk>
+* Ag Stephens <ag.stephens@stfc.ac.uk>
 
 ## Contributors
 

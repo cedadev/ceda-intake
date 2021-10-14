@@ -1,10 +1,9 @@
-from ceda_intake.database_handler import DBHandler
 import os
 
+from ceda_intake.database_handler import DBHandler
 
 
 dbh = None
-
 
 
 def setup_module():
@@ -20,3 +19,4 @@ def test_create_db():
 
 def teardown_module():
     del os.environ["CEDA_INTAKE_DB_SETTINGS"]
+
