@@ -26,6 +26,7 @@ import subprocess as sp
 import os
 import sys
 import shlex
+import glob
 import json
 import requests
 import pandas as pd
@@ -44,7 +45,9 @@ config = {
         "base_dir": "/badc/cmip5/data/cmip5",
         "facets": "activity product institute model experiment frequency realm mip_table ensemble_member version variable".split(),
         "scan_depth": 5, 
-        "mappings": {"project": "activity"}
+        "mappings": {"project": "activity"},
+        "deeper_scan": 1,
+        "exclude": ("derived", "retracted")
     },
     "cordex": {
         "base_dir": "/badc/cordex/data/cordex",
@@ -81,7 +84,11 @@ def lookup_latest(dr):
         return None
 
 
-def get_version_dirs(rip_dir, project):
+def get_dataset_dirs(rip_dir, project):
+    """
+    This uses "latest" directories to find the directories.
+    In the case of CMIP5, extra post-processing will be required.
+    """
     query = {"query": { "bool": { "must": [ { "match_phrase_prefix": 
                  { "path": rip_dir } }, 
                  { "term": { "dir": { "value": "latest" } } } ] } } }
@@ -115,11 +122,46 @@ def get_version_dirs(rip_dir, project):
     return records 
 
 
-def write_intake_catalog(version_dirs_file, project):
+def scan_dir(dr):
+    return glob.glob(f"{dr}/[a-zA-Z0-9]*")
+
+
+def scan_deeper(dataset_dirs, scan_level=0):
+    dirs = dataset_dirs
+
+    for i in range(scan_level):
+        these_dirs = []
+        for dr in dirs:
+            these_dirs.extend(scan_dir(dr))
+
+        dirs = these_dirs
+ 
+    return dirs
+
+
+
+def test_scan_deeper():
+    d1 = "/badc/cmip5/data/cmip5/output1/BCC/bcc-csm1-1/decadal1991/mon/land/Lmon/r3i1p1/v20121026"
+    v1 = "evspsblsoi  evspsblveg  lai  mrfso  mrlsl  mrro  mrros  mrso  mrsos  prveg  tran  tsl".split() 
+    r1 = scan_deeper([d1], 1)
+    assert sorted(r1) == sorted([f"{d1}/{v}" for v in v1])
+
+    assert scan_deeper([d1], 0) == [d1]
+
+    # Do a 2-level scan
+    d2 = "/badc/cmip5/data/cmip5/output1/BCC/bcc-csm1-1/decadal1991/mon/land/Lmon/r3i1p1"
+    r2 = scan_deeper([d2], 2)
+    assert r2[0] == "/badc/cmip5/data/cmip5/output1/BCC/bcc-csm1-1/decadal1991/mon/land/Lmon/r3i1p1/files/evspsblsoi_20121026"
+    assert r2[-1] == "/badc/cmip5/data/cmip5/output1/BCC/bcc-csm1-1/decadal1991/mon/land/Lmon/r3i1p1/v20121026/tsl"
+    assert len(r2) == 36
+    print("ALL TESTS PASSED")
+
+
+def write_intake_catalog(datasets_file, project):
 #    ds_id, location, ...facets..., start_time, end_time
     facets = config[project]["facets"]
     base_dir = config[project]["base_dir"]
-    records = sorted(open(version_dirs_file).read().strip().split())
+    records = sorted(open(datasets_file).read().strip().split())
     catalog_maker = CatalogMaker(project, facets, records, base_dir, "posix", "nc")
     catalog_maker.create()
 
@@ -129,7 +171,7 @@ def make_intake_catalog(project, remake=False):
     reset(project)
 
     rip_file = f"{project}_rip_dirs.txt"
-    version_dirs_file = f"{project}_version_dirs.txt"
+    datasets_file = f"{project}_dataset_dirs.txt"
     intake_file = f"{project}_intake.csv.gz"
 
     depth = conf["scan_depth"]
@@ -139,34 +181,45 @@ def make_intake_catalog(project, remake=False):
 
     else:
         fout = open(rip_file, "w")
-        cmd = f"find -L {conf['base_dir']} -maxdepth {depth} -mindepth {depth} -type d -name 'r*'"
+        cmd = f"find -L {conf['base_dir']} -maxdepth {depth} -mindepth {depth} -type d -name '[a-zA-Z0-9]*'"
         print(f"[INFO] Running: {cmd}")
         sp.call(shlex.split(cmd), stdout=fout)
         fout.close()
         print(f"[INFO] Wrote: {rip_file}")
 
-    if not remake and os.path.isfile(version_dirs_file):
-        print(f"[WARN] Already found: {version_dirs_file}")
+    if not remake and os.path.isfile(datasets_file):
+        print(f"[WARN] Already found: {datasets_file}")
 
     else:
         print(f"[INFO] Looping through each ripf directory to get listings...")
         rip_dirs = open(rip_file).read().strip().split()
 
-        with open(version_dirs_file, "w") as version_writer:
+        with open(datasets_file, "w") as dataset_writer:
 
             for rip_dir in rip_dirs:
-                version_dirs = get_version_dirs(rip_dir, project=project)
-                print(f"[INFO] Count for {rip_dir}: {len(version_dirs)}")
-                version_writer.write("\n".join(version_dirs) + "\n")
+                if [exclude for exclude in conf.get("exclude", []) if exclude in rip_dir]:
+                    print(f"[WARN] Ignoring excluded path: {rip_dir}")
+                    continue
 
-        print(f"[INFO] Wrote: {version_dirs_file}")
+                dataset_dirs = get_dataset_dirs(rip_dir, project=project)
+
+                if len(dataset_dirs) == 0:
+                    log_err(f"./add_latest_links.sh {rip_dir}", project)
+
+                print(f"[INFO] Count for {rip_dir}: {len(dataset_dirs)}")
+
+                dataset_dirs = scan_deeper(dataset_dirs, conf.get("deeper_scan", 0))
+                #if dataset_dirs: print(dataset_dirs)
+                dataset_writer.write("\n".join(dataset_dirs) + "\n")
+
+        print(f"[INFO] Wrote: {datasets_file}")
 
     if not remake and os.path.isfile(intake_file):
         print(f"[WARN] Already found: {intake_file}")
 
     else:
         print(f"[INFO] Writing intake file: {intake_file}")
-        write_intake_catalog(version_dirs_file, project)
+        write_intake_catalog(datasets_file, project)
 
     print(f"[INFO] All done!")
 

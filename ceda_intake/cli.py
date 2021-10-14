@@ -7,9 +7,10 @@ __contact__ = "ruth.petrie@stfc.ac.uk"
 __copyright__ = "Copyright 2018 United Kingdom Research and Innovation"
 __license__ = "BSD - see LICENSE file in top-level package directory"
 
+import os
 import sys
 import argparse
-from ceda_intake.ceda_intake import make_intake_catalog
+from ceda_intake.lib import make_intake_catalog
 
 
 def main():
