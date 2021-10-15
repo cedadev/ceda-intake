@@ -21,7 +21,7 @@
   ],
   "assets": {
     "column_name": "location",
-    "format": "xarray"
+    "format": "intake_xarray.netcdf.NetCDFSource"
   },
   "aggregation_control": {
     "variable_column_name": "variable_id",
