@@ -17,18 +17,17 @@ def main():
     """Console script for ceda_intake."""
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('-o', '--output_file', type=str, required=False, default='intake-esm.csv', help='Ouptut csv file')
-    parser.add_argument('-t', '--catalog_type', type=str, required=False, default='posix', help='Type of catalog to generate: valid entries are posix or object-store')
-    parser.add_argument('-p', '--project', type=str, required=True, help='Project catalog to generate')
+    parser.add_argument('--test', dest='test_mode', action='store_true', 
+                        help='Create small catalog in test mode')
+    parser.add_argument('-p', '--project', type=str, required=True, 
+                        help='Project catalog to generate')
 
     args = parser.parse_args()
 
-    if os.path.exists(args.output_file):
-        os.remove(args.output_file)
-
-    make_intake_catalog(args.project)
+    make_intake_catalog(args.project, test_mode=args.test_mode)
     return 0
 
 
 if __name__ == "__main__":
     sys.exit(main())  # pragma: no cover
+

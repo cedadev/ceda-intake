@@ -88,10 +88,6 @@ class CatalogMaker:
             location = dr + "/*.nc"
             items = [dataset_id, location, self._project] + facet_values + [start, end]
 
-            if len(items) != 16:
-                print(len(items), items)
-                import pdb; pdb.set_trace()
-
             rows.append(items)
 
         return pd.DataFrame(rows, columns=headers)

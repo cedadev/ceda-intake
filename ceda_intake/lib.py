@@ -133,7 +133,7 @@ def write_intake_catalog(datasets_file, project):
     catalog_maker.create()
 
 
-def make_intake_catalog(project, remake=True):
+def make_intake_catalog(project, remake=True, test_mode=False):
     conf = config[project]
 
     reset(project)
@@ -163,7 +163,7 @@ def make_intake_catalog(project, remake=True):
 
         with open(datasets_file, "w") as dataset_writer:
 
-            for primary_dir in primary_dirs:
+            for count, primary_dir in enumerate(primary_dirs):
                 if [exclude for exclude in conf.get("exclude", []) if exclude in primary_dir]:
                     print(f"[WARN] Ignoring excluded path: {primary_dir}")
                     continue
@@ -178,6 +178,10 @@ def make_intake_catalog(project, remake=True):
                 dataset_dirs = scan_deeper(dataset_dirs, conf.get("deeper_scan", 0))
                 #if dataset_dirs: print(dataset_dirs)
                 dataset_writer.write("\n".join(dataset_dirs) + "\n")
+
+                if test_mode and count > 9:
+                    print(f"[WARN] Restricting to 10 primary dirs in test mode.")
+                    break
 
         print(f"[INFO] Wrote: {datasets_file}")
 
