@@ -21,18 +21,6 @@
   ],
   "assets": {
     "column_name": "location",
-    "format": "intake_xarray.netcdf.NetCDFSource"
-  },
-  "aggregation_control": {
-    "variable_column_name": "variable_id",
-    "groupby_attrs": [
-      "table_id"
-    ],
-    "aggregations": [
-      {
-        "type": "union",
-        "attribute_name": "variable_id"
-      }
-    ]
+    "driver": "intake_xarray.netcdf.NetCDFSource"
   }
 }
