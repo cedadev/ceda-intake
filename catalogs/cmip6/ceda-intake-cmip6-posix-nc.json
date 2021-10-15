@@ -21,7 +21,7 @@
   ],
   "assets": {
     "column_name": "location",
-    "format": "netcdf"
+    "format": "xarray"
   },
   "aggregation_control": {
     "variable_column_name": "variable_id",
