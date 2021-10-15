@@ -1,0 +1,39 @@
+{
+  "esmcat_version": "0.1.0",
+  "id": "__id__",
+  "description": "__description__",
+  "catalog_file": "__cat_file__",
+  "attributes": [
+    { "column_name": "dsid", "vocabulary": "" },
+    { "column_name": "location", "vocabulary": "" },
+    { "column_name": "mip_era", "vocabulary": "" },
+    { "column_name": "activity_id", "vocabulary": "" },
+    { "column_name": "institution_id", "vocabulary": "" },
+    { "column_name": "source_id", "vocabulary": "" },
+    { "column_name": "experiment_id", "vocabulary": "" },
+    { "column_name": "member_id", "vocabulary": "" },
+    { "column_name": "table_id", "vocabulary": "" },
+    { "column_name": "variable_id", "vocabulary": "" },
+    { "column_name": "grid_label", "vocabulary": "" },
+    { "column_name": "version", "vocabulary": "" },
+    { "column_name": "start_time", "vocabulary": "" },
+    { "column_name": "end_time", "vocabulary": "" }
+  ],
+  "assets": {
+    "column_name": "location",
+    "format": "netcdf"
+  },
+  "aggregation_control": {
+    "variable_column_name": "variable_id",
+    "groupby_attrs": [
+      "table_id"
+    ],
+    "aggregations": [
+      {
+        "type": "union",
+        "attribute_name": "variable_id"
+      }
+    ]
+  }
+}
+
